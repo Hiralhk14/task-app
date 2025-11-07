@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 
+import Pagination from '@/shared/components/common/Pagination';
+import Loader from '@/shared/components/common/Loader';
+
 import { useAuth } from '@/context/AuthContext';
 import { fetchProducts } from '@/api/products/productsApi';
-import Pagination from '@/shared/components/common/Pagination';
+
 
 export default function ProductsPage() {
   const { isAuthenticated, user } = useAuth();
@@ -100,9 +103,7 @@ export default function ProductsPage() {
             </div>
 
             {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
-              </div>
+              <Loader />
             ) : (
               <>
                 <div className="space-y-4 mb-6">
