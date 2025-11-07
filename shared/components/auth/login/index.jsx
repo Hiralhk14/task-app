@@ -4,17 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+
 import Input from '@/shared/ui/input';
 import Button from '@/shared/ui/button';
 import PasswordInput from '@/shared/ui/pwdInput';
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-
-  const [errors, setErrors] = useState({});
   const { login, loading, isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -24,44 +21,22 @@ export default function Login() {
     }
   }, [isAuthenticated, router]);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e?.target?.name]: e?.target?.value
-    });
-    setErrors({ ...errors, [e?.target?.name]: '' });
-  };
-
-  const validate = () => {
-    const newErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!formData?.email) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(formData?.email)) {
-      newErrors.email = 'Invalid email address';
+  const formik = useFormik({
+    initialValues: {
+      email: '',
+      password: ''
+    },
+    validationSchema: Yup.object({
+      email: Yup?.string() ?.email('Invalid email address')?.required('Email is required'),
+      password: Yup.string()?.min(6, 'Password must be at least 6 characters')?.required('Password is required')
+    }),
+    onSubmit: async (values) => {
+      const result = await login(values?.email, values?.password);
+      if (result?.success) {
+        router?.push('/tasks');
+      }
     }
-
-    if (!formData?.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData?.password?.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    setErrors(newErrors);
-    return Object?.keys(newErrors)?.length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    // Use email as username for the API call
-    const result = await login(formData.email, formData.password);
-    if (result.success) {
-      router.push('/tasks');
-    }
-  };
+  });
 
   if (isAuthenticated) return null;
 
@@ -75,16 +50,17 @@ export default function Login() {
           </div>
 
           <div className="mt-8 bg-white rounded-2xl shadow-xl p-8">
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={formik?.handleSubmit}>
               <Input
                 id="email"
                 name="email"
                 label="Email"
                 type="email"
                 placeholder="Enter your email"
-                value={formData?.email}
-                onChange={handleChange}
-                error={errors?.email}
+                value={formik?.values.email}
+                onChange={formik?.handleChange}
+                onBlur={formik?.handleBlur}
+                error={formik?.touched?.email && formik?.errors?.email}
               />
 
               <PasswordInput
@@ -92,9 +68,10 @@ export default function Login() {
                 name="password"
                 label="Password"
                 placeholder="Enter your password"
-                value={formData?.password}
-                onChange={handleChange}
-                error={errors?.password}
+                value={formik?.values?.password}
+                onChange={formik?.handleChange}
+                onBlur={formik?.handleBlur}
+                error={formik?.touched?.password && formik?.errors?.password}
               />
 
               <Button type="submit" loading={loading}>

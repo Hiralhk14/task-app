@@ -81,14 +81,14 @@ export const AuthProvider = ({ children }) => {
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find(u => u.email === email && u.password === password);
+      const users = JSON?.parse(localStorage?.getItem('users') || '[]');
+      const user = users?.find(u => u?.email === email && u?.password === password);
 
       if (user) {
-        const token = btoa(`${user.email}-${Date.now()}`);
+        const token = btoa(`${user?.email}-${Date?.now()}`);
       
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('userData', JSON.stringify(user));
+        localStorage?.setItem('authToken', token);
+        localStorage?.setItem('userData', JSON?.stringify(user));
 
         dispatch({
           type: 'LOGIN_SUCCESS',
@@ -111,8 +111,8 @@ export const AuthProvider = ({ children }) => {
           };
           
           const token = btoa(`${demoUser.email}-${Date.now()}`);
-          localStorage.setItem('authToken', token);
-          localStorage.setItem('userData', JSON.stringify(demoUser));
+          localStorage?.setItem('authToken', token);
+          localStorage?.setItem('userData', JSON.stringify(demoUser));
 
           dispatch({
             type: 'LOGIN_SUCCESS',

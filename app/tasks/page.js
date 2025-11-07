@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import TaskModal from '@/shared/components/tasks/TaskModal';
+import { fetchTasks, fetchTaskById } from '@/api/tasks/tasksApi';
+import Pagination from '@/shared/components/common/Pagination';
+import { RefreshCw, ShoppingBag } from 'lucide-react';
 
 export default function TasksPage() {
   const { isAuthenticated, user, logout } = useAuth();
@@ -27,13 +30,10 @@ export default function TasksPage() {
     }
   }, [isAuthenticated, router]);
 
-  const fetchTasks = async (page = 1) => {
+  const fetchTasksHandler = async (page = 1) => {
     try {
       setLoading(true);
-      const skip = (page - 1) * limit;
-      const response = await fetch(`https://dummyjson.com/todos?limit=${limit}&skip=${skip}`);
-      const data = await response.json();
-
+      const data = await fetchTasks(limit, page);
       setTasks(data?.todos || []);
       setTotalTasks(data?.total || 0);
       setTotalPages(Math?.ceil((data?.total || 0) / limit));
@@ -48,14 +48,14 @@ export default function TasksPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchTasks(1);
+      fetchTasksHandler(1);
     }
   }, [isAuthenticated]);
 
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
-      fetchTasks(page);
+      fetchTasksHandler(page);
     }
   };
 
@@ -66,8 +66,7 @@ export default function TasksPage() {
 
   const handleTaskClick = useCallback(async (taskId) => {
     try {
-      const res = await fetch(`https://dummyjson.com/todos/${taskId}`);
-      const data = await res.json();
+      const data = await fetchTaskById(taskId);
       setSelectedTask(data);
       setModalOpen(true);
     } catch (error) {
@@ -115,6 +114,10 @@ export default function TasksPage() {
     return null;
   }
 
+  const handleViewProducts = () => {
+    router?.push('/products');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-50">
       <div className="container mx-auto px-4 py-8">
@@ -146,10 +149,17 @@ export default function TasksPage() {
               <h2 className="text-2xl font-bold text-gray-900">Your Tasks</h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => fetchTasks(currentPage)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200"
+                  onClick={() => fetchTasksHandler(currentPage)}
+                  className="bg-blue-600 hover:bg-blue-700 text-black px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
                 >
-                  Refresh
+                  <RefreshCw size={18} />
+                </button>
+                <button
+                  onClick={handleViewProducts}
+                  className="bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md hover:shadow-lg hover:from-primary-600 hover:to-primary-500 px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
+                >
+                  <ShoppingBag size={18} />
+                  View Product List
                 </button>
                 <button
                   onClick={handleAddNewTask}
@@ -219,59 +229,12 @@ export default function TasksPage() {
                     ))
                   )}
                 </div>
-                {totalPages > 1 && (
-                  <div className="flex justify-center items-center space-x-2 mt-8">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${currentPage === 1
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-primary-600 hover:bg-primary-700 text-white'
-                        }`}
-                    >
-                      Previous
-                    </button>
-
-                    <div className="flex space-x-1">
-                      {Array?.from({ length: Math?.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={`px-3 py-2 rounded-lg font-semibold transition-all duration-200 ${currentPage === pageNum
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                              }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${currentPage === totalPages
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-primary-600 hover:bg-primary-700 text-white'
-                        }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  className="mt-8"
+                />
               </>
             )}
           </div>
@@ -289,4 +252,4 @@ export default function TasksPage() {
       />
     </div>
   );
-} 
+}

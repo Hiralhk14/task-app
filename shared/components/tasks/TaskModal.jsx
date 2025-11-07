@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { X } from "lucide-react";
 import { toast } from 'react-toastify';
 
+import TaskDetails from './taskDetails';
+import TaskForm from './addTaskFrom';
+import { addTask, deleteTask, updateTask } from '@/api/tasks/tasksApi';
+
 export default function TaskModal({ open, onClose, task, onEdit, onDelete, onTaskUpdated, onTaskAdded, isAddMode = false }) {
   const [editMode, setEditMode] = useState(false);
   const [todo, setTodo] = useState(task?.todo || '');
@@ -24,72 +28,70 @@ export default function TaskModal({ open, onClose, task, onEdit, onDelete, onTas
 
   const handleSave = async () => {
     if (!todo.trim()) {
-      alert('Please enter a task name');
+      toast.error('Please enter a task name');
       return;
     }
 
     setLoading(true);
     try {
       if (isAddMode) {
-        // Add new task
-        const res = await fetch('https://dummyjson.com/todos/add', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            todo: todo.trim(),
-            completed: false, // Default status is pending
-            userId: 5, // Default user ID
-          })
-        });
-        const newTask = await res.json();
+        const taskData = {
+          todo: todo.trim(),
+          completed: completed,
+          userId: 1
+        };
+        
+        const newTask = await addTask(taskData);
         onTaskAdded?.(newTask);
+        toast.success('Task added successfully!', {
+          toastId: `add-task-${Date.now()}`,
+        });
         onClose?.();
       } else {
-        // Update existing task
-        const res = await fetch(`https://dummyjson.com/todos/${task.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ todo, completed }),
-        });
-        const updated = await res.json();
+        const updated = await updateTask(task?.id, todo.trim(), completed);        
         onTaskUpdated?.(updated);
+        toast.success('Task updated successfully!', {
+          toastId: `update-task-${task?.id}`,
+        });
         setEditMode(false);
       }
-    } catch (e) {
-      toast.error('Failed to save task');
+    } catch (error) {
+      console.error('Save task error:', error);
+      toast.error(error.message || 'Failed to save task', {
+        toastId: `error-save-${Date.now()}`,
+      });
     }
     setLoading(false);
   };
 
   const handleDelete = async () => {
     if (!task?.id) {
-      alert('Task ID not found');
+      toast.error('Task ID not found');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this task?')) {
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch(`https://dummyjson.com/todos/${task.id}`, {
-        method: 'DELETE',
-      });
+      const result = await deleteTask(task.id);
       
-      if (res.ok) {
-        const result = await res.json();
-        console.log('Task deleted:', result);
-        
-        // Check if the task was marked as deleted
-        if (result.isDeleted) {
-          onDelete?.(task?.id);
-          onClose?.();
-        } else {
-          throw new Error('Task was not deleted');
-        }
+      if (result?.isDeleted) {
+        onDelete?.(task?.id);
+        toast.success('Task deleted successfully!', {
+          toastId: `delete-task-${task.id}`, 
+        });
+        onClose?.();
       } else {
-        throw new Error('Failed to delete task');
+        throw new Error('Task was not deleted');
       }
-    } catch (e) {
-      toast.error('Failed to delete task');
-      console.error('Delete error:', e);
+    } catch (error) {
+      console.error('Delete task error:', error);
+      toast.error(error.message || 'Failed to delete task', {
+        toastId: `error-delete-${Date.now()}`,
+      });
     }
     setLoading(false);
   };
@@ -99,111 +101,36 @@ export default function TaskModal({ open, onClose, task, onEdit, onDelete, onTas
       <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">
-            {isAddMode ? 'Add New Task' : 'Task Details'}
+            {isAddMode ? 'Add New Task' : editMode ? 'Edit Task' : 'Task Details'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 p-1 rounded-full focus:outline-none"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 p-1 rounded-full focus:outline-none" aria-label="Close">
             <X size={24} />
           </button>
         </div>
-        
-        {isAddMode ? (
-          // Add mode - only show task name input
-          <>
-            <div className="mb-4">
-              <label className="block mb-1 font-medium">Task Name</label>
-              <textarea
-                className="w-full border rounded p-2"
-                value={todo}
-                onChange={e => setTodo(e?.target?.value)}
-                rows={3}
-                placeholder="Enter task name..."
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={onClose}
-                className="border px-4 py-2 rounded"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded"
-                disabled={loading}
-              >
-                {loading ? 'Adding...' : 'Add Task'}
-              </button>
-            </div>
-          </>
-        ) : editMode ? (
-          // Edit mode for existing tasks
-          <>
-            <div className="mb-4">
-              <label className="block mb-1 font-medium">Task</label>
-              <textarea
-                className="w-full border rounded p-2"
-                value={todo}
-                onChange={e => setTodo(e?.target?.value)}
-                rows={2}
-              />
-            </div>
-            <div className="mb-4 flex items-center">
-              <input
-                type="checkbox"
-                id="completed"
-                checked={completed}
-                onChange={e => setCompleted(e?.target?.checked)}
-                className="mr-2"
-              />
-              <label htmlFor="completed" className="font-medium">Completed</label>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setEditMode(false)}
-                className="border px-4 py-2 rounded"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded"
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </>
+        {isAddMode || editMode ? (
+          <TaskForm
+            todo={todo}
+            setTodo={setTodo}
+            completed={completed}
+            setCompleted={setCompleted}
+            loading={loading}
+            isAddMode={isAddMode}
+            onSave={handleSave}
+            onCancel={() => {
+              if (isAddMode) onClose();
+              else setEditMode(false);
+            }}
+          />
         ) : (
-          // View mode for existing tasks
-          <>
-            <div className="mb-2"><strong>Name:</strong> {task?.todo}</div>
-            <div className="mb-2"><strong>Status:</strong> {task?.completed ? 'Completed' : 'Pending'}</div>
-            <div className="mb-2"><strong>ID:</strong> {task?.id}</div>
-            <div className="mb-4"><strong>User ID:</strong> {task?.userId}</div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setEditMode(true)}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded"
-              >
-                Edit
-              </button>
-              <button
-                onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                disabled={loading}
-              >
-                {loading ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </>
+          <TaskDetails
+            task={task}
+            onEdit={() => setEditMode(true)}
+            onDelete={handleDelete}
+            loading={loading}
+            onClose={onClose}
+          />
         )}
       </div>
     </div>
   );
-} 
+}
